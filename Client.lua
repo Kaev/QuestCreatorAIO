@@ -157,6 +157,11 @@ function ItemButtonReceiveDrag(self)
 end
 
 function _ItemButtonReceiveDrag(self,id)
+    if (GetItemInfo(id)==nil) then
+        GameTooltip:SetHyperlink("item:"..id..":0:0:0:0:0:0:0")
+        print("Item["..id.."] is not found.query it in server,plsase try again.")
+        return
+    end
     self:SetID(id)
     local name, _, _, _, _, _, _, _, _, texture, _ = GetItemInfo(id)
     local frameName = self:GetName()
