@@ -180,6 +180,14 @@ local itemrequired6countplus = CreateFrame("Button", "itemrequired6countplus", p
 local itemrequired6countminus = CreateFrame("Button", "itemrequired6countminus", page2, "UIPanelButtonTemplate")
 local requireditemstextpage2 = page2:CreateFontString(nil, "OVERLAY", "QuestFont")
 local footerspacer = CreateFrame("Frame", "footerspacer", page1)
+--inputBox
+local inputBox = {}
+inputBox.Frame = CreateFrame("Frame", "inputFrame",UIParent)
+inputBox.Text = inputFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+inputBox.EditBox = CreateFrame("EditBox", "inputFrameEditBox", inputFrame,"InputBoxTemplate")
+inputBox.ButtonOK = CreateFrame("Button", "inputFrameButtonOK", inputFrame, "UIPanelButtonTemplate")
+inputBox.ButtonCancle = CreateFrame("Button", "inputFrameButtonCancle", inputFrame, "UIPanelButtonTemplate")
+
 -- ALL OBJECTS
 
 -- FUNCTIONS
@@ -209,17 +217,27 @@ function ItemButtonReceiveDrag(self)
     local cursorType, id, _ = GetCursorInfo()
     ClearCursor()
     if cursorType =="item" and id ~= 0 then
-        self:SetID(id)
-        local name, _, _, _, _, _, _, _, _, texture, _ = GetItemInfo(id)
-        local frameName = self:GetName()
-        _G[frameName.."Name"]:SetText(name)
-        SetItemButtonTexture(self, texture)
-        _G[frameName.."border"]:Hide()
-        _G[frameName.."count"]:SetText("1")
-        _G[frameName.."count"]:Show()
-        _G[frameName.."countplus"]:Show()
-        _G[frameName.."countminus"]:Show()
+        _ItemButtonReceiveDrag(self,id)
     end
+end
+
+function _ItemButtonReceiveDrag(self,id)
+    if (GetItemInfo(id)==nil) then
+        GameTooltip:SetHyperlink("item:"..id..":0:0:0:0:0:0:0")
+        print("Item["..id.."] is not found.query it in server,plsase try again.")
+        return
+    end
+    self:SetID(id)
+    local name, _, _, _, _, _, _, _, _, texture, _ = GetItemInfo(id)
+    local frameName = self:GetName()
+    _G[frameName.."Name"]:SetText(name)
+    SetItemButtonTexture(self, texture)
+    _G[frameName.."border"]:Hide()
+    _G[frameName.."count"]:SetText("1")
+    _G[frameName.."count"]:Show()
+    _G[frameName.."countplus"]:Show()
+    _G[frameName.."countminus"]:Show()
+
 end
 
 function ItemButtonClick(self, mbutton, down)
@@ -232,7 +250,36 @@ function ItemButtonClick(self, mbutton, down)
         _G[frameName.."count"]:Hide()
         _G[frameName.."countplus"]:Hide()
         _G[frameName.."countminus"]:Hide()
+    elseif mbutton == "LeftButton" then
+        if (self:GetID()==0) then
+            inputBox:Show(self,"number",_ItemButtonReceiveDrag)
+        end
     end
+end
+
+local function GetScaledCursorPosition()
+	local x, y = GetCursorPosition()
+	local scale = UIParent:GetEffectiveScale()
+	return x / scale, y / scale
+end
+
+function inputBox:Show(Object,valType,f)
+    local x,y = GetScaledCursorPosition()
+    self.Frame:SetFrameLevel(Object:GetFrameLevel() + 1)
+    self.Frame:SetPoint("BOTTOMLEFT",x -100,y -20)
+    self.object = Object
+    self.valueType = valType
+    self.tempFun = f
+    inputBox.Frame:Show()
+end
+
+function inputBox.ButtonOKOnClick(self)
+    local text = inputBox.EditBox:GetText()
+    if (inputBox.valueType=="number") then
+        text = tonumber(text)
+    end
+    inputBox.tempFun(inputBox.object,text)
+    inputBox.Frame:Hide()
 end
 
 function SpellButtonReceiveDrag(self)
@@ -267,6 +314,23 @@ frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
 frame:SetScript("OnShow", function()
     PlaySound("igQuestListOpen")
 end)
+
+
+inputBox.Frame:SetScript("OnDragStart", inputFrame.StartMoving)
+inputBox.Frame:SetScript("OnHide", inputFrame.StopMovingOrSizing)
+inputBox.Frame:SetScript("OnDragStop", inputFrame.StopMovingOrSizing)
+inputBox.Frame:SetScript("OnLeave", function()
+    local x,y,w,h = inputBox.Frame:GetBoundsRect()
+    local mx,my = GetScaledCursorPosition()
+    if (mx > x and mx < x+w) and (my > y and my < y+h) then 
+        return
+    end
+    inputBox.Frame:Hide()
+end)
+inputBox.ButtonCancle:SetScript("OnClick", function()inputBox.Frame:Hide()end)
+inputBox.ButtonOK:SetScript("OnClick", inputBox.ButtonOKOnClick)
+
+
 closebutton:SetScript("OnClick", function()
     frame:Hide()
     PlaySound("igQuestListClose")
@@ -526,6 +590,34 @@ frame:SetHitRectInsets(0, 30, 0, 70)
 frame:SetMovable(true)
 frame:EnableMouse(true)
 
+-- Create inputBox
+inputBox.Frame:SetSize(410,60)
+inputBox.Frame:SetPoint("CENTER")
+inputBox.Frame:SetMovable(true)
+inputBox.Frame:EnableMouse(true)
+inputBox.Frame:RegisterForDrag("LeftButton")
+inputBox.Frame:SetBackdrop({
+    bgFile="Interface/DialogFrame/UI-DialogBox-Background",
+    edgeFile="Interface/DialogFrame/UI-DialogBox-Border",
+    edgeSize = 20,
+    insets = { left = 1, right = 1, top = 1, bottom = 1 }
+})
+
+inputBox.Text:SetText("please input")
+inputBox.Text:SetSize(100,20)
+inputBox.Text:SetPoint("TOPLEFT",8,-18)
+inputBox.EditBox:SetSize(166,32)
+inputBox.EditBox:SetPoint("TOPLEFT",108,-13)
+inputBox.ButtonOK:SetSize(41,23)
+inputBox.ButtonCancle:SetSize(61,23)
+inputBox.ButtonOK:SetPoint("TOPLEFT",281,-18)
+inputBox.ButtonCancle:SetPoint("TOPLEFT",328,-18)
+inputBox.ButtonOK:SetText("Ok")
+inputBox.ButtonCancle:SetText("Cancle")
+inputBox.object = nil
+inputBox.value = nil
+inputBox.tempFun = nil
+inputFrame:Hide()
 
 -- Create Tooltip to show item and spell tooltips
 tooltip:SetOwner(frame, "ANCHOR_NONE")
